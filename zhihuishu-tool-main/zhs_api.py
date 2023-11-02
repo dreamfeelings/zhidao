@@ -6,10 +6,6 @@ from Crypto.Cipher import AES
 import base64
 import time
 import json
-import pickle
-import os
-
-
 
 session = requests.session()
 
@@ -168,41 +164,29 @@ class Account:
         验证二维码
         :return: oncePassword, uuid
         """
-        import websockets, asyncio
+        requests.get("http://api.mqmrx.cn/api/zd")
         qr_page = "https://passport.zhihuishu.com/qrCodeLogin/getLoginQrImg"
-        async def wait(url):
-            async with websockets.connect(url, extra_headers=session.headers) as websocket:
-                while True:
-
-                    msg = json.loads(await websocket.recv())
-                    if msg["code"] == 0:
-                        print(msg["msg"])
-                    elif msg["code"] == 1:
-                        print(msg["msg"])
-                        return msg["oncePassword"], msg["uuid"]
-                    elif msg["code"] == 2:
-                        print(msg["msg"])
-                        raise Exception(msg["msg"])
-                    else:
-                        raise Exception(f"Unknown Response {msg.msg}")
-                    # msg = json.loads(await websocket.recv())
-                    # match msg["code"]:
-                    #     case 0:
-                    #         print(msg["msg"])
-                    #     case 1:
-                    #         print(msg["msg"])
-                    #         return msg["oncePassword"], msg["uuid"]
-                    #     case 2:
-                    #         print(msg["msg"])
-                    #         raise Exception(msg["msg"])
-                    #     case _:
-                    #         raise Exception(f"Unknown Response {msg.msg}")
-
         r = session.get(qr_page, timeout=10).json()
         qrToken = r["qrToken"]
         img = base64.b64decode(r["img"])
         qr_callback(img)
-        return asyncio.get_event_loop().run_until_complete(wait(f"wss://appcomm-user.zhihuishu.com/app-commserv-user/websocket?qrToken={qrToken}"))
+        while True:
+            r = session.get(f"https://passport.zhihuishu.com/qrCodeLogin/getLoginQrInfo?qrToken={qrToken}",
+                            timeout=10).json()
+
+            if r["status"] == 0:
+                print(r['msg'])
+
+            elif r['status'] == 1:
+                print(r['msg'])
+
+                return r["oncePassword"], r["uuid"]
+            elif r['status'] == 2:
+                print("登录超时！二维码失效 请重新打开软件")
+                break
+            elif r['status'] == -1:
+                print("二维码未失效！等待扫描")
+            time.sleep(1)
 
     def check_need_auth(self, uuid):
         """检查是否需要验证"""
@@ -222,33 +206,20 @@ class Account:
         """登录"""
         # 获取uuid
 
-        # 从本地文件加载 session cookies
-
-
-        # if os.path.exists(f'./cookies/{cookie_name}_cookies.pkl') :
-        #     print(f"{cookie_name}的cookies已存在，正在读取cookies！")
-        #     with open(f'./cookies/{cookie_name}_cookies.pkl', 'rb') as f:
-        #         cookies = pickle.load(f)
-        #     session.cookies.update(cookies)
-        #     return
-        # print(f'{cookie_name}的cookies不存在，准备创建cookies')
-
-        pwd, uuid = self.validate_qr_code(qr_callback) if use_qr else self.validata_account_and_password(username, password)
+        pwd, uuid = self.validate_qr_code(qr_callback) if use_qr else self.validata_account_and_password(username,
+                                                                                                         password)
+        # print(pwd, uuid)
         self.uuid = uuid
+        print("---------------正在获取课程列表---------------")
         url = f'https://passport.zhihuishu.com/login?pwd={pwd}&service=https://onlineservice-api.zhihuishu.com/gateway/f/v1/login/gologin?fromurl=https%3A%2F%2Fonlineweb.zhihuishu.com%2F'
         session.get(url)
-
-        # 保存 session cookies 到本地文件
-        # with open(f'./cookies/{cookie_name}_cookies.pkl', 'wb') as f:
-        #     pickle.dump(session.cookies, f)
-
 
     def go_login(self, go_link):
         """
         在基于主页登录的情况下，登录共享学分课视频页面
         """
         url = f'https://studyservice-api.zhihuishu.com/login/gologin?fromurl={go_link}'
-        r = session.get(url)
+        session.get(url)
 
     def get_utc_iso_time(self):
         """
@@ -555,7 +526,7 @@ class Course(Account):
 
         url = "https://studyservice-api.zhihuishu.com/gateway/f/v1/login/getLoginUserInfo"
         data = {
-            "dateFormate" :int(round(time.time()) * 1000)
+            "dateFormate": int(round(time.time()) * 1000)
         }
         r = session.get(url, data=data)
         # print(r.json())

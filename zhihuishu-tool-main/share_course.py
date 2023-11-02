@@ -20,9 +20,11 @@ from PIL import Image
         |提交只有ev, lid, date的请求（也可以不管）
 """
 
-print('仅供学习交流，严禁用于商业用途，请于24小时内删除！   ——————by梦情')
-print('软件免费开源，禁止售卖   ——————by梦情')
-print('源地址 ：https://github.com/luoyily/zhihuishu-tool')
+print('仅供学习交流，严禁用于商业用途，请于24小时内删除')
+print('软件免费开源，禁止售卖')
+print('github开源地址 ：https://github.com/dreamfeelings/zhidao')
+print("觉得好用就给个start吧！")
+print("作者：dreamfeelings")
 rabbit = [
     "  /\\_/\\",
     " ( o.o )",
@@ -32,20 +34,15 @@ rabbit = [
 for line in rabbit:
     print(line)
 
+
 def show_image(img):
     img = Image.open(io.BytesIO(img))
     img.show()
 
 
 course = zhs_api.Course()
-# username = input("请输入账号：")
-# password = input("请输入密码：")
-# username = 13185791278
-# password ='xhy15024537376'
-# course.login(username, password)
 
-
-
+print("---------------正在获取二维码---------------")
 course.login(use_qr=True, qr_callback=show_image)
 is_immediately_submit = True
 
@@ -107,12 +104,9 @@ def submit_study_record(video_lesson, init_learn_time, dt, recruit_id, study_tot
     video_pos = time.strftime("%H:%M:%S", time.gmtime(init_learn_time + dt))
 
     getMainCode = course.getMainCode()['data']['uuid'] + 'zhs'
-    # print(getMainCode)
     zwsds_data = [recruit_id, video_lesson.lesson_id, small_lesson_id, last_view_id, video_lesson.chapter_id, "0",
                   play_time, study_total_time, video_pos, getMainCode]
-    # print(zwsds_data)
     zwsds = zhs_encrypt.get_ev(zwsds_data)
-    # print(zwsds)
 
     resp = course.save_database_interval_time(watch_point, zwsds, learningTokenId=learning_token_id, courseId=course_id)
     # print(resp)
@@ -142,28 +136,29 @@ for page_no in range(1, int((share_course_count - 1) / 5) + 2):
         item = ShareCourse(cid, name, progress, rid, secret)
         share_course_list.append(item)
 # 打印全部课程名字
-print("正在进行的课程：", "\n")
-for index,course_ in enumerate(share_course_list):
-    print(f'{index+1}、',course_.name)
-if int(input("接下来将会学习每个课程25分钟，是否确定？ 1：确定 0：退出")) == 1:
-    pass
-else:
-    exit(0)
-
-is_immediately_submit = bool(int(input("选择进度提交模式：0：按正常时间提交（正常挂完25分钟） 1：立即提交（立即刷完）")))
-course.go_login(f'https://studyh5.zhihuishu.com/videoStudy.html#/'
-                f'studyVideo?recruitAndCourseId={share_course_list[0].secret}')
+print("---------------课程列表---------------")
+for index, course_ in enumerate(share_course_list):
+    print(f'{index + 1}、', course_.name)
 
 print(f'一共有{len(share_course_list)}节课程')
 
-start = int(input("请输入start值："))
-end = int(input("请输入end值："))
+print("例如：start=1 end=3 完成序号为 1，2，3的课程)")
+start = int(input("请输入start(开始课程的序号)："))
+end = int(input("请输入end(结束课程的序号)："))
 
-for c_index in range(start-1,end):
-    # for c_index in range(1,2):
+model = int(
+    input(
+        "---------------刷课模式(默认 模式 1)---------------\n0：退出\n1：刷平时分（每节课25分钟）\n2：全部刷完\n请选择对应模式："))
+if model == 0:
+    exit(0)
+
+is_immediately_submit = bool(int(input("选择进度提交模式：0：按正常时间提交（耗时） 1：立即提交（立即刷完）")))
+course.go_login(f'https://studyh5.zhihuishu.com/videoStudy.html#/'
+                f'studyVideo?recruitAndCourseId={share_course_list[0].secret}')
+
+for c_index in range(start - 1, end):
     name = share_course_list[c_index].name
 
-    # print(f'开始课程：{name}')
     print('开始课程：')
     print(f'---------------{name}---------------')
     # 每到一个课程，VideoLessonList清空一次
@@ -210,7 +205,7 @@ for c_index in range(start-1,end):
     for vl in video_lesson_list:
         play_time = 0
         # 判断本地学习时长是否大于指定时间（25分钟）
-        if local_study_time <= plan_time * 60:
+        if local_study_time <= plan_time * 60 or model == 2:
             # 查询该课程的观看情况，看完的视频则跳过
             learning_note = course.pre_learning_note(ccCourseId=course_id, chapterId=vl.chapter_id,
                                                      lessonId=vl.lesson_id,
@@ -220,23 +215,7 @@ for c_index in range(start-1,end):
             learning_token_id = learning_note['data']["studiedLessonDto"]['id']
             learn_time = learning_note['data']["studiedLessonDto"]["learnTimeSec"]
             study_total_time = learning_note['data']["studiedLessonDto"]["studyTotalTime"]
-            # 学习时长接近视频时长，跳过该视频
-            # if learn_time >= vl.video_sec - 5:
-            #     continue
-            #
-            # print('learn_time: ', learn_time)
-            # print('study_total_time: ', study_total_time)
-            # print('\n')
-            #
-            # if study_total_time + 3 >= learn_time and learn_time != 0 and study_total_time != 0:
-            #     print("该章节已看完！跳过")
-            #     continue
 
-            # print('learn_time: ', learn_time)
-            # print('study_total_time: ', study_total_time)
-            # print("该章节未看完！")
-            # 计算需要提交的时间点
-            # 先获取视频弹题点
             video_pointer = course.load_video_pointer_info(vl.lesson_id, recruit_id, course_id, vl.small_lesson_id)
             submit_times = []
             question_times = []
@@ -248,8 +227,8 @@ for c_index in range(start-1,end):
             # 计算一共需要提交记录的次数，最少次数为视频总时长/300
             for i in range(int((vl.video_sec - 1) / 300) + 1 + len(question_times)):
                 # print(vl.lesson_name)
-                if local_study_time != 0 :
-                      print(f'本地学习时长：{local_study_time}','\n')
+                if local_study_time != 0:
+                    print(f'本地学习时长：{local_study_time}', '\n')
                 # 预计下次提交时间
                 t_ = learn_time + 300
                 qi = 0
@@ -292,4 +271,4 @@ for c_index in range(start-1,end):
                             t_ += 300
                             local_study_time += dt
 
-print('仅供学习交流，严禁用于商业用途，请于24小时内删除！   ——————by梦情')
+print('仅供学习交流，严禁用于商业用途，请于24小时内删除!')
